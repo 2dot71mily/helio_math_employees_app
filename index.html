@@ -185,6 +185,7 @@
   const answers = {};
   const notes = {};
   let step = 0;
+  let notesDone = false;
 
   const REVIEWER = "Avery";
 
@@ -227,7 +228,7 @@
   }
 
   function render() {
-    if (step >= QUESTIONS.length) return renderDone();
+    if (step >= QUESTIONS.length) return notesDone ? renderDone() : renderNote();
 
     const q = QUESTIONS[step];
     let inner = `
@@ -304,31 +305,30 @@
 
   function advance() {
     confetti();
-    renderNote();
+    step++;
+    render();
   }
 
   function renderNote() {
-    const q = QUESTIONS[step];
-    const prompt = "Type one or two words to help you remember what you saw. Your boss might ask you about it!";
+    const prompt = "Type a few words to help you remember what you saw today. Your boss might ask you about it!";
     card.innerHTML = `
       <div class="mascot">📝</div>
       <button class="speak" id="speakBtn">🔊 Read it to me</button>
-      <div class="question">One or two words to remember</div>
+      <div class="question">Anything to remember?</div>
       <p class="hint">${prompt}</p>
       <input class="notebox" id="noteInput" type="text" autocomplete="off"
-             placeholder="like: added wrong" value="${(notes[q.id] || "").replace(/"/g,'&quot;')}" />
+             placeholder="like: adding was fun" value="${(notes.overall || "").replace(/"/g,'&quot;')}" />
       <div class="choices single" style="margin-top:18px">
-        <button class="btn btn-purple" id="noteNext">Next ➡️</button>
+        <button class="btn btn-purple" id="noteNext">Done ➡️</button>
         <button class="btn btn-gray" id="noteSkip">Skip ⏭️</button>
       </div>
-      ${dotsHtml()}
     `;
     const input = document.getElementById("noteInput");
     document.getElementById("speakBtn").onclick = () => speak(prompt);
     const go = (save) => {
-      notes[q.id] = save ? input.value.trim() : "";
+      notes.overall = save ? input.value.trim() : "";
+      notesDone = true;
       confetti();
-      step++;
       render();
     };
     document.getElementById("noteNext").onclick = () => go(true);
@@ -349,16 +349,19 @@
       if (q.type === "yesno") shown = a === "yes" ? "👍 Yes" : a === "no" ? "👎 No" : "—";
       else if (q.type === "faces") shown = a ? `${(q.faceIcons || FACE_EMOJI)[a-1]} ${(q.faceLabels ? q.faceLabels[a-1] : "")}` : "—";
       else if (q.type === "stars") shown = a ? "⭐".repeat(a) : "—";
-      const note = (notes[q.id] || "").trim();
-      const noteHtml = note ? `<br><span style="opacity:.7">📝 ${note}</span>` : "";
-      return `<li><span class="q">${q.icon} ${q.text}</span><br>${shown}${noteHtml}</li>`;
+      return `<li><span class="q">${q.icon} ${q.text}</span><br>${shown}</li>`;
     }).join("");
+
+    const overall = (notes.overall || "").trim();
+    const noteRow = overall
+      ? `<li><span class="q">📝 To remember</span><br>${overall}</li>`
+      : "";
 
     card.innerHTML = `
       <div class="mascot">🏆</div>
       <div class="question">Great job today, ${REVIEWER}!</div>
       <p style="opacity:.7;margin-top:-6px">${dateStr}</p>
-      <ul class="report">${rows}</ul>
+      <ul class="report">${rows}${noteRow}</ul>
       <div class="choices single" style="margin-top:8px">
         <button class="btn btn-blue" id="printBtn">🖨️ Show Boss my report</button>
         <button class="btn btn-purple" id="againBtn">🔁 Do it again tomorrow</button>
@@ -368,7 +371,7 @@
     document.getElementById("againBtn").onclick = () => {
       for (const k in answers) delete answers[k];
       for (const k in notes) delete notes[k];
-      step = 0; render();
+      step = 0; notesDone = false; render();
     };
   }
 
